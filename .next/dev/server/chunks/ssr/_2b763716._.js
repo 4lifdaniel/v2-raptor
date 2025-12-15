@@ -2741,61 +2741,76 @@ __turbopack_context__.s([
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 "use client";
 ;
-const STORAGE_KEY = "risk_dashboard_applications";
 function useApplicationsStorage() {
     const [applications, setApplications] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
     const [isLoaded, setIsLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
-    // Load from localStorage on mount
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        async function loadApplications() {
+            try {
+                const response = await fetch("/api/applications");
+                if (response.ok) {
+                    const data = await response.json();
+                    setApplications(data);
+                }
+            } catch (error) {
+                console.error("Error loading applications:", error);
+            } finally{
+                setIsLoaded(true);
+            }
+        }
+        loadApplications();
+    }, []);
+    const addApplications = async (newApps)=>{
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                setApplications(parsed);
+            const response = await fetch("/api/applications", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newApps)
+            });
+            if (response.ok) {
+                const updated = await response.json();
+                setApplications(updated);
             }
         } catch (error) {
-            console.error("[v0] Error loading applications from storage:", error);
-        } finally{
-            setIsLoaded(true);
+            console.error("Error saving applications:", error);
         }
-    }, []);
-    // Save to localStorage whenever applications change
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        if (isLoaded) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-            } catch (error) {
-                console.error("[v0] Error saving applications to storage:", error);
+    };
+    const removeApplication = async (id)=>{
+        try {
+            const response = await fetch("/api/applications", {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    id
+                })
+            });
+            if (response.ok) {
+                const updated = await response.json();
+                setApplications(updated);
             }
+        } catch (error) {
+            console.error("Error removing application:", error);
         }
-    }, [
-        applications,
-        isLoaded
-    ]);
-    // If an app with the same name exists, overwrite it; otherwise add it
-    const addApplications = (newApps)=>{
-        setApplications((current)=>{
-            const updated = [
-                ...current
-            ];
-            for (const newApp of newApps){
-                const existingIndex = updated.findIndex((app)=>app.name.toLowerCase() === newApp.name.toLowerCase());
-                if (existingIndex >= 0) {
-                    // Overwrite existing application with same name
-                    updated[existingIndex] = newApp;
-                } else {
-                    // Add new application
-                    updated.push(newApp);
-                }
+    };
+    const clearAll = async ()=>{
+        try {
+            const response = await fetch("/api/applications", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify([])
+            });
+            if (response.ok) {
+                setApplications([]);
             }
-            return updated;
-        });
-    };
-    const removeApplication = (id)=>{
-        setApplications((current)=>current.filter((app)=>app.id !== id));
-    };
-    const clearAll = ()=>{
-        setApplications([]);
+        } catch (error) {
+            console.error("Error clearing applications:", error);
+        }
     };
     return {
         applications,

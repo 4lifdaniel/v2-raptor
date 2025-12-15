@@ -3,65 +3,76 @@
 import { useState, useEffect } from "react"
 import type { Application } from "@/types/application"
 
-const STORAGE_KEY = "risk_dashboard_applications"
-
 export function useApplicationsStorage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Load from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        setApplications(parsed)
+    async function loadApplications() {
+      try {
+        const response = await fetch("/api/applications")
+        if (response.ok) {
+          const data = await response.json()
+          setApplications(data)
+        }
+      } catch (error) {
+        console.error("Error loading applications:", error)
+      } finally {
+        setIsLoaded(true)
       }
-    } catch (error) {
-      console.error("[v0] Error loading applications from storage:", error)
-    } finally {
-      setIsLoaded(true)
     }
+
+    loadApplications()
   }, [])
 
-  // Save to localStorage whenever applications change
-  useEffect(() => {
-    if (isLoaded) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(applications))
-      } catch (error) {
-        console.error("[v0] Error saving applications to storage:", error)
+  const addApplications = async (newApps: Application[]) => {
+    try {
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newApps),
+      })
+
+      if (response.ok) {
+        const updated = await response.json()
+        setApplications(updated)
       }
+    } catch (error) {
+      console.error("Error saving applications:", error)
     }
-  }, [applications, isLoaded])
+  }
 
-  // If an app with the same name exists, overwrite it; otherwise add it
-  const addApplications = (newApps: Application[]) => {
-    setApplications((current) => {
-      const updated = [...current]
+  const removeApplication = async (id: string) => {
+    try {
+      const response = await fetch("/api/applications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
 
-      for (const newApp of newApps) {
-        const existingIndex = updated.findIndex((app) => app.name.toLowerCase() === newApp.name.toLowerCase())
-
-        if (existingIndex >= 0) {
-          // Overwrite existing application with same name
-          updated[existingIndex] = newApp
-        } else {
-          // Add new application
-          updated.push(newApp)
-        }
+      if (response.ok) {
+        const updated = await response.json()
+        setApplications(updated)
       }
-
-      return updated
-    })
+    } catch (error) {
+      console.error("Error removing application:", error)
+    }
   }
 
-  const removeApplication = (id: string) => {
-    setApplications((current) => current.filter((app) => app.id !== id))
-  }
+  const clearAll = async () => {
+    try {
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([]),
+      })
 
-  const clearAll = () => {
-    setApplications([])
+      if (response.ok) {
+        setApplications([])
+      }
+    } catch (error) {
+      console.error("Error clearing applications:", error)
+    }
   }
 
   return {

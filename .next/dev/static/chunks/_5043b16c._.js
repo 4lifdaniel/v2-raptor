@@ -2856,66 +2856,79 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var _s = __turbopack_context__.k.signature();
 "use client";
 ;
-const STORAGE_KEY = "risk_dashboard_applications";
 function useApplicationsStorage() {
     _s();
     const [applications, setApplications] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]);
     const [isLoaded, setIsLoaded] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
-    // Load from localStorage on mount
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "useApplicationsStorage.useEffect": ()=>{
-            try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    setApplications(parsed);
+            async function loadApplications() {
+                try {
+                    const response = await fetch("/api/applications");
+                    if (response.ok) {
+                        const data = await response.json();
+                        setApplications(data);
+                    }
+                } catch (error) {
+                    console.error("Error loading applications:", error);
+                } finally{
+                    setIsLoaded(true);
                 }
-            } catch (error) {
-                console.error("[v0] Error loading applications from storage:", error);
-            } finally{
-                setIsLoaded(true);
             }
+            loadApplications();
         }
     }["useApplicationsStorage.useEffect"], []);
-    // Save to localStorage whenever applications change
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
-        "useApplicationsStorage.useEffect": ()=>{
-            if (isLoaded) {
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-                } catch (error) {
-                    console.error("[v0] Error saving applications to storage:", error);
-                }
+    const addApplications = async (newApps)=>{
+        try {
+            const response = await fetch("/api/applications", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newApps)
+            });
+            if (response.ok) {
+                const updated = await response.json();
+                setApplications(updated);
             }
+        } catch (error) {
+            console.error("Error saving applications:", error);
         }
-    }["useApplicationsStorage.useEffect"], [
-        applications,
-        isLoaded
-    ]);
-    // If an app with the same name exists, overwrite it; otherwise add it
-    const addApplications = (newApps)=>{
-        setApplications((current)=>{
-            const updated = [
-                ...current
-            ];
-            for (const newApp of newApps){
-                const existingIndex = updated.findIndex((app)=>app.name.toLowerCase() === newApp.name.toLowerCase());
-                if (existingIndex >= 0) {
-                    // Overwrite existing application with same name
-                    updated[existingIndex] = newApp;
-                } else {
-                    // Add new application
-                    updated.push(newApp);
-                }
+    };
+    const removeApplication = async (id)=>{
+        try {
+            const response = await fetch("/api/applications", {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    id
+                })
+            });
+            if (response.ok) {
+                const updated = await response.json();
+                setApplications(updated);
             }
-            return updated;
-        });
+        } catch (error) {
+            console.error("Error removing application:", error);
+        }
     };
-    const removeApplication = (id)=>{
-        setApplications((current)=>current.filter((app)=>app.id !== id));
-    };
-    const clearAll = ()=>{
-        setApplications([]);
+    const clearAll = async ()=>{
+        try {
+            const response = await fetch("/api/applications", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify([])
+            });
+            if (response.ok) {
+                setApplications([]);
+            }
+        } catch (error) {
+            console.error("Error clearing applications:", error);
+        }
     };
     return {
         applications,
@@ -2925,7 +2938,7 @@ function useApplicationsStorage() {
         isLoaded
     };
 }
-_s(useApplicationsStorage, "m4/n3Sbrk6k661yBaE2nCre0b3Q=");
+_s(useApplicationsStorage, "JBYy3LVL07qkAFgP/FwxVwhVUS4=");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
 }
