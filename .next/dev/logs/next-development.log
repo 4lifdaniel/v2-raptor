@@ -1,18 +1,5 @@
-[00:00:01.859] Server  LOG     
-[00:00:01.859] Server  LOG        We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
-[00:00:01.860] Server  LOG        The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
-
-[00:00:01.860] Server  LOG        	- include was updated to add '.next/dev/types/**/*.ts'
-[00:00:01.860] Server  LOG     
-[00:00:01.860] Server  LOG        The following mandatory changes were made to your tsconfig.json:
-
-[00:00:01.860] Server  LOG        	- jsx was set to react-jsx (next.js uses the React automatic runtime)
-[00:00:01.860] Server  LOG     
-[00:00:02.058] Server  LOG      ✓ Ready in 1479ms
-[00:00:36.700] Server  LOG      ○ Compiling / ...
-[00:00:39.120] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
-[00:00:39.120] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
-[00:00:39.120] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","r":"","sdkn":"@vercel/analytics/next","sdkv":"1.3.1","sv":"0.1.3","ts":1765810011148}
-[00:00:42.367] Browser LOG     [v0] Parsed data map: {"application name:":"Application A","capacity management:":"Yes","criticality:":"Critical","department:":"IT Infrastructure Team","description:":"Online Banking (SME)","encryption:":"Yes","end-of-life (next 12 months):":46327,"multi factor authentication:":"Yes","number of audit findings (last 12 months):":0,"number of incidents (last 12 months):":2,"number of vapt findings (last 12 months):":0,"owner:":"John Doe","password complexity as per ispg:":"Yes","project related to application (last 12 months):":"1. Project A\r\n2. Project B\r\n3. Project C","siem integration:":"Yes","waf enabled:":"Yes"}
-[00:00:42.367] Browser LOG     [v0] Application name extracted: Application A
-[00:00:42.367] Browser LOG     [v0] Parsed application: {"auditFindings":0,"capacityManagement":true,"criticality":"Critical","department":"IT Infrastructure Team","description":"Online Banking (SME)","encryption":true,"endOfLife":"46327","id":"1765810014318-0.10027227287276275","incidents":2,"mfa":true,"name":"Application A","owner":"John Doe","passwordComplexity":"Yes","projectCount":3,"projects":["1. Project A","2. Project B","3. Project C"],"riskScore":16,"siemIntegration":true,"vaptFindings":0,"wafEnabled":true}
+[00:00:02.481] Server  LOG      ✓ Ready in 1707ms
+[00:00:11.458] Server  LOG      ○ Compiling / ...
+[00:00:17.021] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:17.021] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
+[00:00:17.021] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","r":"","sdkn":"@vercel/analytics/next","sdkv":"1.3.1","sv":"0.1.3","ts":1769844795447}
