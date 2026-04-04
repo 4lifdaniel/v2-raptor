@@ -7,6 +7,7 @@ import { DashboardStats } from "@/components/dashboard-stats"
 import { ApplicationFilters } from "@/components/application-filters"
 import { ExportPanel } from "@/components/export-panel"
 import { useApplicationsStorage } from "@/hooks/use-applications-storage"
+import { getRiskCategoryKey } from "@/lib/risk-calculator"
 
 export default function Home() {
   const { applications, addApplications, removeApplication, clearAll, isLoaded } = useApplicationsStorage()
@@ -24,9 +25,7 @@ export default function Home() {
     // Apply risk filter
     if (riskFilter !== "all") {
       filtered = filtered.filter((app) => {
-        const level =
-          app.riskScore >= 75 ? "critical" : app.riskScore >= 50 ? "high" : app.riskScore >= 25 ? "medium" : "low"
-        return level === riskFilter
+        return getRiskCategoryKey(app.riskScore) === riskFilter
       })
     }
 

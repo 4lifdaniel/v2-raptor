@@ -4,7 +4,13 @@ import { useState } from "react"
 import { X, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { getRiskColor, getRiskLevel, calculateRiskScoreWithBreakdown } from "@/lib/risk-calculator"
+import {
+  getRiskColor,
+  getRiskLevel,
+  calculateRiskScoreWithBreakdown,
+  getRiskScoreBarPercent,
+  getRiskBarToneClass,
+} from "@/lib/risk-calculator"
 import { ApplicationModal } from "./application-modal"
 import type { Application } from "@/types/application"
 
@@ -56,16 +62,8 @@ export function ApplicationCard({ application, onRemove }: ApplicationCardProps)
             <div className="text-3xl font-bold text-white">{application.riskScore.toFixed(1)}</div>
             <div className="mt-3 w-full bg-slate-600 rounded-full h-2">
               <div
-                className={`h-2 rounded-full transition-all ${
-                  application.riskScore >= 75
-                    ? "bg-red-500"
-                    : application.riskScore >= 50
-                      ? "bg-orange-500"
-                      : application.riskScore >= 25
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
-                }`}
-                style={{ width: `${application.riskScore}%` }}
+                className={`h-2 rounded-full transition-all ${getRiskBarToneClass(application.riskScore)}`}
+                style={{ width: `${getRiskScoreBarPercent(application.riskScore)}%` }}
               />
             </div>
           </div>
@@ -110,9 +108,25 @@ export function ApplicationCard({ application, onRemove }: ApplicationCardProps)
                 SIEM: {application.siemIntegration ? "✓" : "✗"}
               </div>
               <div
-                className={`text-xs p-2 rounded ${application.wafEnabled ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`}
+                className={`text-xs p-2 rounded ${
+                  application.wafEnabled === true
+                    ? "bg-green-900/30 text-green-300"
+                    : application.wafEnabled === false
+                      ? "bg-red-900/30 text-red-300"
+                      : "bg-slate-700/50 text-slate-300"
+                }`}
               >
-                WAF: {application.wafEnabled ? "✓" : "✗"}
+                WAF: {application.wafEnabled === true ? "✓" : application.wafEnabled === false ? "✗" : "N/A"}
+              </div>
+              <div
+                className={`text-xs p-2 rounded ${application.capacityManagement ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`}
+              >
+                Capacity Management: {application.capacityManagement ? "✓" : "✗"}
+              </div>
+              <div
+                className={`text-xs p-2 rounded ${application.passwordComplexity ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`}
+              >
+                Password Complexity: {application.passwordComplexity ? "✓" : "✗"}
               </div>
             </div>
           </div>

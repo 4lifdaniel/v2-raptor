@@ -1,77 +1,159 @@
 import type { Application } from "@/types/application"
 
-// Default weights for each metric (total should sum to 100)
-export const DEFAULT_WEIGHTS = {
-  incidents: 25,
-  auditFindings: 25,
-  vaptFindings: 20,
-  projectCount: 10,
-  security: 20,
-}
-
-// Thresholds for normalizing metrics to 0-100 scale
-export const THRESHOLDS = {
-  incidents: { max: 5, critical: 10 },
-  auditFindings: { max: 5, critical: 10 },
-  vaptFindings: { max: 10, critical: 20 },
-  projectCount: { max: 5, critical: 10 },
-}
-
 export interface RiskBreakdown {
-  incidentScore: number
-  auditScore: number
-  vaptScore: number
-  projectScore: number
-  securityScore: number
+  applicationCriticality: number
+  internetFacing: number
+  thirdPartyInvolvement: number
+  hostingLocation: number
+  incidentsSeverity1: number
+  incidentsSeverity2: number
+  incidentsSeverity3: number
+  auditFindings: number
+  vaptCritical: number
+  vaptHigh: number
+  vaptMedium: number
+  vaptLow: number
+  mfa: number
+  siem: number
+  encryption: number
+  capacityManagement: number
+  waf: number
+  eol: number
   totalScore: number
 }
 
-export function calculateRiskScoreWithBreakdown(application: Application, weights = DEFAULT_WEIGHTS): RiskBreakdown {
-  // Normalize each metric to a 0-100 scale
-  const incidentScore = Math.min(100, (application.incidents / THRESHOLDS.incidents.max) * 100)
-  const auditScore = Math.min(100, (application.auditFindings / THRESHOLDS.auditFindings.max) * 100)
-  const vaptScore = Math.min(100, (application.vaptFindings / THRESHOLDS.vaptFindings.max) * 100)
-  const projectScore = Math.min(100, (application.projectCount / THRESHOLDS.projectCount.max) * 100)
+function criticalityPoints(criticality?: string): number {
+  const c = (criticality || "").trim().toLowerCase()
+  if (c.includes("very") && c.includes("critical")) return 4
+  if (c.includes("non-critical") || c.includes("non critical")) return 0
+  if (c === "critical") return 2
+  if (c === "required") return 1
+  return 0
+}
 
-  // Security Features: Each missing feature increases risk
-  const securityFeatures = [
-    application.mfa ? 1 : 0,
-    application.encryption ? 1 : 0,
-    application.siemIntegration ? 1 : 0,
-    application.wafEnabled ? 1 : 0,
-    application.capacityManagement ? 1 : 0,
-  ]
-  const securityScore = 100 - (securityFeatures.reduce((a, b) => a + b, 0) / 5) * 100
+function getIncidentCounts(app: Application): { s1: number; s2: number; s3: number } {
+  let s1 = app.incidentsSev1 ?? 0
+  let s2 = app.incidentsSev2 ?? 0
+  let s3 = app.incidentsSev3 ?? 0
+  if (s1 === 0 && s2 === 0 && s3 === 0 && app.incidents > 0) {
+    s3 = app.incidents
+  }
+  return { s1, s2, s3 }
+}
 
-  // Calculate weighted risk score
+function getVaptCounts(app: Application): { c: number; h: number; m: number; l: number } {
+  let c = app.vaptCritical ?? 0
+  let h = app.vaptHigh ?? 0
+  let m = app.vaptMedium ?? 0
+  let l = app.vaptLow ?? 0
+  if (c + h + m + l === 0 && app.vaptFindings > 0) {
+    l = app.vaptFindings
+  }
+  return { c, h, m, l }
+}
+
+function eolPoints(app: Application): number {
+  if (app.eolWithin12Months === true) return 5
+  if (app.eolWithin12Months === false) return 0
+  const s = String(app.endOfLife || "").trim().toLowerCase()
+  if (s === "yes" || s === "true") return 5
+  return 0
+}
+
+function wafPoints(app: Application): number {
+  if (app.internetFacing !== true) return 0
+  if (app.wafEnabled === true) return 0
+  if (app.wafEnabled === false) return 3
+  return 0
+}
+
+export function calculateRiskScoreWithBreakdown(application: Application): RiskBreakdown {
+  const applicationCriticality = criticalityPoints(application.criticality)
+  const internetFacing = application.internetFacing === true ? 2 : 0
+  const thirdPartyInvolvement = application.thirdPartyInvolvement === true ? 2 : 0
+  const hostingLocation = application.hostingExternal === true ? 2 : 0
+
+  const { s1, s2, s3 } = getIncidentCounts(application)
+  const incidentsSeverity1 = s1 * 4
+  const incidentsSeverity2 = s2 * 2
+  const incidentsSeverity3 = s3 * 1
+
+  const auditFindings = application.auditFindings * 1
+
+  const v = getVaptCounts(application)
+  const vaptCritical = v.c * 4
+  const vaptHigh = v.h * 3
+  const vaptMedium = v.m * 2
+  const vaptLow = v.l * 1
+
+  const mfa = application.mfa === true ? 0 : 2
+  const siem = application.siemIntegration === true ? 0 : 2
+  const encryption = application.encryption === true ? 0 : 3
+  const capacityManagement = application.capacityManagement === true ? 0 : 1
+
+  const waf = wafPoints(application)
+  const eol = eolPoints(application)
+
   const totalScore =
-    (incidentScore * weights.incidents +
-      auditScore * weights.auditFindings +
-      vaptScore * weights.vaptFindings +
-      projectScore * weights.projectCount +
-      securityScore * weights.security) /
-    100
+    applicationCriticality +
+    internetFacing +
+    thirdPartyInvolvement +
+    hostingLocation +
+    incidentsSeverity1 +
+    incidentsSeverity2 +
+    incidentsSeverity3 +
+    auditFindings +
+    vaptCritical +
+    vaptHigh +
+    vaptMedium +
+    vaptLow +
+    mfa +
+    siem +
+    encryption +
+    capacityManagement +
+    waf +
+    eol
 
   return {
-    incidentScore: Math.round(incidentScore * 10) / 10,
-    auditScore: Math.round(auditScore * 10) / 10,
-    vaptScore: Math.round(vaptScore * 10) / 10,
-    projectScore: Math.round(projectScore * 10) / 10,
-    securityScore: Math.round(securityScore * 10) / 10,
+    applicationCriticality,
+    internetFacing,
+    thirdPartyInvolvement,
+    hostingLocation,
+    incidentsSeverity1,
+    incidentsSeverity2,
+    incidentsSeverity3,
+    auditFindings,
+    vaptCritical,
+    vaptHigh,
+    vaptMedium,
+    vaptLow,
+    mfa,
+    siem,
+    encryption,
+    capacityManagement,
+    waf,
+    eol,
     totalScore: Math.round(totalScore * 10) / 10,
   }
 }
 
 export function calculateRiskScore(application: Application): number {
-  const breakdown = calculateRiskScoreWithBreakdown(application, DEFAULT_WEIGHTS)
-  return breakdown.totalScore
+  return calculateRiskScoreWithBreakdown(application).totalScore
 }
 
-export function getRiskLevel(score: number): string {
-  if (score >= 75) return "Critical"
-  if (score >= 50) return "High"
-  if (score >= 25) return "Medium"
+/** 0–10 Low, 11–20 Medium, 21–35 High, 36+ Critical */
+export function getRiskLevel(score: number): "Low" | "Medium" | "High" | "Critical" {
+  if (score >= 36) return "Critical"
+  if (score >= 21) return "High"
+  if (score >= 11) return "Medium"
   return "Low"
+}
+
+export function getRiskCategoryKey(score: number): "critical" | "high" | "medium" | "low" {
+  if (score >= 36) return "critical"
+  if (score >= 21) return "high"
+  if (score >= 11) return "medium"
+  return "low"
 }
 
 export function getRiskColor(score: number): string {
@@ -106,6 +188,30 @@ export function getRiskBgColor(score: number): string {
   }
 }
 
-export function getScorePercentage(score: number): number {
-  return Math.round((score / 100) * 100)
+/** Bar fill width: score is capped at 100 for display when above 100. */
+export function getRiskScoreBarPercent(score: number): number {
+  return Math.min(100, Math.max(0, score))
+}
+
+export function getRiskBarToneClass(score: number): string {
+  if (score >= 36) return "bg-red-500"
+  if (score >= 21) return "bg-orange-500"
+  if (score >= 11) return "bg-yellow-500"
+  return "bg-green-500"
+}
+
+export function getRiskLevelHex(score: number): string {
+  const level = getRiskLevel(score)
+  switch (level) {
+    case "Critical":
+      return "#dc2626"
+    case "High":
+      return "#ea580c"
+    case "Medium":
+      return "#eab308"
+    case "Low":
+      return "#16a34a"
+    default:
+      return "#64748b"
+  }
 }

@@ -206,83 +206,132 @@ if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelper
 "use strict";
 
 __turbopack_context__.s([
-    "DEFAULT_WEIGHTS",
-    ()=>DEFAULT_WEIGHTS,
-    "THRESHOLDS",
-    ()=>THRESHOLDS,
     "calculateRiskScore",
     ()=>calculateRiskScore,
     "calculateRiskScoreWithBreakdown",
     ()=>calculateRiskScoreWithBreakdown,
+    "getRiskBarToneClass",
+    ()=>getRiskBarToneClass,
     "getRiskBgColor",
     ()=>getRiskBgColor,
+    "getRiskCategoryKey",
+    ()=>getRiskCategoryKey,
     "getRiskColor",
     ()=>getRiskColor,
     "getRiskLevel",
     ()=>getRiskLevel,
-    "getScorePercentage",
-    ()=>getScorePercentage
+    "getRiskLevelHex",
+    ()=>getRiskLevelHex,
+    "getRiskScoreBarPercent",
+    ()=>getRiskScoreBarPercent
 ]);
-const DEFAULT_WEIGHTS = {
-    incidents: 25,
-    auditFindings: 25,
-    vaptFindings: 20,
-    projectCount: 10,
-    security: 20
-};
-const THRESHOLDS = {
-    incidents: {
-        max: 5,
-        critical: 10
-    },
-    auditFindings: {
-        max: 5,
-        critical: 10
-    },
-    vaptFindings: {
-        max: 10,
-        critical: 20
-    },
-    projectCount: {
-        max: 5,
-        critical: 10
+function criticalityPoints(criticality) {
+    const c = (criticality || "").trim().toLowerCase();
+    if (c.includes("very") && c.includes("critical")) return 4;
+    if (c.includes("non-critical") || c.includes("non critical")) return 0;
+    if (c === "critical") return 2;
+    if (c === "required") return 1;
+    return 0;
+}
+function getIncidentCounts(app) {
+    let s1 = app.incidentsSev1 ?? 0;
+    let s2 = app.incidentsSev2 ?? 0;
+    let s3 = app.incidentsSev3 ?? 0;
+    if (s1 === 0 && s2 === 0 && s3 === 0 && app.incidents > 0) {
+        s3 = app.incidents;
     }
-};
-function calculateRiskScoreWithBreakdown(application, weights = DEFAULT_WEIGHTS) {
-    // Normalize each metric to a 0-100 scale
-    const incidentScore = Math.min(100, application.incidents / THRESHOLDS.incidents.max * 100);
-    const auditScore = Math.min(100, application.auditFindings / THRESHOLDS.auditFindings.max * 100);
-    const vaptScore = Math.min(100, application.vaptFindings / THRESHOLDS.vaptFindings.max * 100);
-    const projectScore = Math.min(100, application.projectCount / THRESHOLDS.projectCount.max * 100);
-    // Security Features: Each missing feature increases risk
-    const securityFeatures = [
-        application.mfa ? 1 : 0,
-        application.encryption ? 1 : 0,
-        application.siemIntegration ? 1 : 0,
-        application.wafEnabled ? 1 : 0,
-        application.capacityManagement ? 1 : 0
-    ];
-    const securityScore = 100 - securityFeatures.reduce((a, b)=>a + b, 0) / 5 * 100;
-    // Calculate weighted risk score
-    const totalScore = (incidentScore * weights.incidents + auditScore * weights.auditFindings + vaptScore * weights.vaptFindings + projectScore * weights.projectCount + securityScore * weights.security) / 100;
     return {
-        incidentScore: Math.round(incidentScore * 10) / 10,
-        auditScore: Math.round(auditScore * 10) / 10,
-        vaptScore: Math.round(vaptScore * 10) / 10,
-        projectScore: Math.round(projectScore * 10) / 10,
-        securityScore: Math.round(securityScore * 10) / 10,
+        s1,
+        s2,
+        s3
+    };
+}
+function getVaptCounts(app) {
+    let c = app.vaptCritical ?? 0;
+    let h = app.vaptHigh ?? 0;
+    let m = app.vaptMedium ?? 0;
+    let l = app.vaptLow ?? 0;
+    if (c + h + m + l === 0 && app.vaptFindings > 0) {
+        l = app.vaptFindings;
+    }
+    return {
+        c,
+        h,
+        m,
+        l
+    };
+}
+function eolPoints(app) {
+    if (app.eolWithin12Months === true) return 5;
+    if (app.eolWithin12Months === false) return 0;
+    const s = String(app.endOfLife || "").trim().toLowerCase();
+    if (s === "yes" || s === "true") return 5;
+    return 0;
+}
+function wafPoints(app) {
+    if (app.internetFacing !== true) return 0;
+    if (app.wafEnabled === true) return 0;
+    if (app.wafEnabled === false) return 3;
+    return 0;
+}
+function calculateRiskScoreWithBreakdown(application) {
+    const applicationCriticality = criticalityPoints(application.criticality);
+    const internetFacing = application.internetFacing === true ? 2 : 0;
+    const thirdPartyInvolvement = application.thirdPartyInvolvement === true ? 2 : 0;
+    const hostingLocation = application.hostingExternal === true ? 2 : 0;
+    const { s1, s2, s3 } = getIncidentCounts(application);
+    const incidentsSeverity1 = s1 * 4;
+    const incidentsSeverity2 = s2 * 2;
+    const incidentsSeverity3 = s3 * 1;
+    const auditFindings = application.auditFindings * 1;
+    const v = getVaptCounts(application);
+    const vaptCritical = v.c * 4;
+    const vaptHigh = v.h * 3;
+    const vaptMedium = v.m * 2;
+    const vaptLow = v.l * 1;
+    const mfa = application.mfa === true ? 0 : 2;
+    const siem = application.siemIntegration === true ? 0 : 2;
+    const encryption = application.encryption === true ? 0 : 3;
+    const capacityManagement = application.capacityManagement === true ? 0 : 1;
+    const waf = wafPoints(application);
+    const eol = eolPoints(application);
+    const totalScore = applicationCriticality + internetFacing + thirdPartyInvolvement + hostingLocation + incidentsSeverity1 + incidentsSeverity2 + incidentsSeverity3 + auditFindings + vaptCritical + vaptHigh + vaptMedium + vaptLow + mfa + siem + encryption + capacityManagement + waf + eol;
+    return {
+        applicationCriticality,
+        internetFacing,
+        thirdPartyInvolvement,
+        hostingLocation,
+        incidentsSeverity1,
+        incidentsSeverity2,
+        incidentsSeverity3,
+        auditFindings,
+        vaptCritical,
+        vaptHigh,
+        vaptMedium,
+        vaptLow,
+        mfa,
+        siem,
+        encryption,
+        capacityManagement,
+        waf,
+        eol,
         totalScore: Math.round(totalScore * 10) / 10
     };
 }
 function calculateRiskScore(application) {
-    const breakdown = calculateRiskScoreWithBreakdown(application, DEFAULT_WEIGHTS);
-    return breakdown.totalScore;
+    return calculateRiskScoreWithBreakdown(application).totalScore;
 }
 function getRiskLevel(score) {
-    if (score >= 75) return "Critical";
-    if (score >= 50) return "High";
-    if (score >= 25) return "Medium";
+    if (score >= 36) return "Critical";
+    if (score >= 21) return "High";
+    if (score >= 11) return "Medium";
     return "Low";
+}
+function getRiskCategoryKey(score) {
+    if (score >= 36) return "critical";
+    if (score >= 21) return "high";
+    if (score >= 11) return "medium";
+    return "low";
 }
 function getRiskColor(score) {
     const level = getRiskLevel(score);
@@ -314,8 +363,29 @@ function getRiskBgColor(score) {
             return "bg-slate-500/20 border-slate-500/30";
     }
 }
-function getScorePercentage(score) {
-    return Math.round(score / 100 * 100);
+function getRiskScoreBarPercent(score) {
+    return Math.min(100, Math.max(0, score));
+}
+function getRiskBarToneClass(score) {
+    if (score >= 36) return "bg-red-500";
+    if (score >= 21) return "bg-orange-500";
+    if (score >= 11) return "bg-yellow-500";
+    return "bg-green-500";
+}
+function getRiskLevelHex(score) {
+    const level = getRiskLevel(score);
+    switch(level){
+        case "Critical":
+            return "#dc2626";
+        case "High":
+            return "#ea580c";
+        case "Medium":
+            return "#eab308";
+        case "Low":
+            return "#16a34a";
+        default:
+            return "#64748b";
+    }
 }
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);
@@ -332,6 +402,68 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$xlsx$2f$xlsx
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/risk-calculator.ts [app-client] (ecmascript)");
 ;
 ;
+/** Row labels that are sheet titles/headers, not data fields */ const SKIP_ROW_LABELS = new Set([
+    "application risk assessment"
+]);
+function parseYesNo(value) {
+    return String(value ?? "").trim().toLowerCase() === "yes";
+}
+function parseWaf(value) {
+    const s = String(value ?? "").trim().toLowerCase();
+    if (s === "yes" || s === "true") return true;
+    if (s === "no" || s === "false") return false;
+    if (s === "n/a" || s === "na" || s === "") return null;
+    return null;
+}
+/** yes/no/n/a, or legacy unknown string → boolean */ function resolveWafEnabled(value) {
+    const w = parseWaf(value);
+    if (w !== null) return w;
+    const s = String(value ?? "").trim();
+    if (s === "") return null;
+    return parseYesNo(value) ? true : false;
+}
+function parseHostingExternal(value) {
+    const s = String(value ?? "").trim().toLowerCase();
+    if (s.includes("external") || s.includes("cloud") || s.includes("vendor")) return true;
+    if (s.includes("internal") || s.includes("on-prem") || s.includes("on prem") || s.includes("onprem")) return false;
+    return false;
+}
+/** Build lookup map: each label is stored with and without trailing colon (lowercased). */ function buildLabelMap(rows) {
+    return rows.reduce((acc, row)=>{
+        const raw = String(row[0] ?? "").trim();
+        if (!raw) return acc;
+        const lower = raw.toLowerCase();
+        const canonical = lower.replace(/:\s*$/, "");
+        if (SKIP_ROW_LABELS.has(canonical)) return acc;
+        const value = row[1];
+        acc[lower] = value;
+        acc[canonical] = value;
+        return acc;
+    }, {});
+}
+function hasKey(map, key) {
+    return Object.prototype.hasOwnProperty.call(map, key);
+}
+/** First matching key’s value; prefers keys in order. */ function pick(map, ...keys) {
+    for (const k of keys){
+        if (hasKey(map, k)) return map[k];
+    }
+    return undefined;
+}
+function pickString(map, ...keys) {
+    const v = pick(map, ...keys);
+    return String(v ?? "").trim();
+}
+function pickInt(map, ...keys) {
+    for (const k of keys){
+        if (!hasKey(map, k)) continue;
+        const raw = map[k];
+        if (raw === undefined || raw === null || raw === "") continue;
+        const n = Number.parseInt(String(raw).replace(/,/g, "").trim(), 10);
+        if (!Number.isNaN(n)) return n;
+    }
+    return 0;
+}
 async function parseExcelFile(file) {
     return new Promise((resolve, reject)=>{
         const reader = new FileReader();
@@ -353,52 +485,67 @@ async function parseExcelFile(file) {
                     reject(new Error("Excel file appears to be empty"));
                     return;
                 }
-                const dataMap = jsonData.reduce((acc, row)=>{
-                    const label = String(row[0] || "").trim().toLowerCase();
-                    const value = row[1];
-                    if (label) {
-                        acc[label] = value;
-                    }
-                    return acc;
-                }, {});
+                const dataMap = buildLabelMap(jsonData);
                 console.log("[v0] Parsed data map:", dataMap);
-                // Parse the application data with normalized header matching
-                const applicationName = String(dataMap["application name:"] || "Unknown App").trim();
+                const applicationName = pickString(dataMap, "application name", "application name:", "application name :") || "Unknown App";
                 console.log("[v0] Application name extracted:", applicationName);
-                const incidents = Number.parseInt(String(dataMap["number of incidents (last 12 months):"] || 0), 10) || 0;
-                const auditFindings = Number.parseInt(String(dataMap["number of audit findings (last 12 months):"] || 0), 10) || 0;
-                const vaptFindings = Number.parseInt(String(dataMap["number of vapt findings (last 12 months):"] || 0), 10) || 0;
-                // Parse boolean fields
-                const mfa = String(dataMap["multi factor authentication:"]).toLowerCase() === "yes";
-                const siemIntegration = String(dataMap["siem integration:"]).toLowerCase() === "yes";
-                const encryption = String(dataMap["encryption:"]).toLowerCase() === "yes";
-                const wafEnabled = String(dataMap["waf enabled:"]).toLowerCase() === "yes";
-                const capacityManagement = String(dataMap["capacity management:"]).toLowerCase() === "yes";
-                // Parse projects list
-                const projectsRaw = dataMap["project related to application (last 12 months):"];
+                const incidentsSev1 = pickInt(dataMap, "incident-s1", "incident-s1:", "incidents severity 1 (count):", "incidents - severity 1:");
+                const incidentsSev2 = pickInt(dataMap, "incident-s2", "incident-s2:", "incidents severity 2 (count):", "incidents - severity 2:");
+                const incidentsSev3 = pickInt(dataMap, "incident-s3", "incident-s3:", "incidents severity 3 (count):", "incidents - severity 3:");
+                const auditFindings = pickInt(dataMap, "audit findings", "audit findings:", "number of audit findings (last 12 months):");
+                const vaptCritical = pickInt(dataMap, "vapt-critical", "vapt-critical:", "vapt critical (count):", "vapt - critical:");
+                const vaptHigh = pickInt(dataMap, "vapt-high", "vapt-high:", "vapt high (count):", "vapt - high:");
+                const vaptMedium = pickInt(dataMap, "vapt-medium", "vapt-medium:", "vapt medium (count):", "vapt - medium:");
+                const vaptLow = pickInt(dataMap, "vapt-low", "vapt-low:", "vapt low (count):", "vapt - low:");
+                const vaptSum = vaptCritical + vaptHigh + vaptMedium + vaptLow;
+                const vaptFindings = pickInt(dataMap, "number of vapt findings (last 12 months):");
+                const vaptFindingsTotal = vaptSum > 0 ? vaptSum : vaptFindings;
+                const mfa = parseYesNo(pick(dataMap, "mfa enabled", "mfa enabled:", "multi factor authentication:", "multi factor authentication"));
+                const siemIntegration = parseYesNo(pick(dataMap, "siem integration", "siem integration:"));
+                const encryption = parseYesNo(pick(dataMap, "encryption", "encryption:"));
+                const capacityManagement = parseYesNo(pick(dataMap, "capacity management", "capacity management:"));
+                const passwordComplexity = parseYesNo(pick(dataMap, "password complexity as per ispg:", "password complexity as per ispg"));
+                const wafEnabled = resolveWafEnabled(pick(dataMap, "waf enabled", "waf enabled:"));
+                const internetFacing = parseYesNo(pick(dataMap, "internet facing", "internet facing:"));
+                const thirdPartyInvolvement = parseYesNo(pick(dataMap, "third party involvement", "third party involvement:"));
+                const hostingExternal = parseHostingExternal(pick(dataMap, "hosting location", "hosting location:"));
+                const endOfLifeRaw = pickString(dataMap, "end-of-life", "end-of-life:", "end of life", "end of life:", "end-of-life (next 12 months):", "eol", "eol:");
+                const eolLower = endOfLifeRaw.toLowerCase();
+                const eolWithin12Months = eolLower === "yes" || eolLower === "true";
+                const projectsRaw = pick(dataMap, "project related to application (last 12 months):", "projects", "projects:");
                 const projects = projectsRaw ? String(projectsRaw).split("\n").map((p)=>p.trim()).filter((p)=>p && !isNaN(Number(p.charAt(0)))) : [];
                 const application = {
                     id: `${Date.now()}-${Math.random()}`,
                     name: applicationName,
-                    criticality: String(dataMap["criticality:"] || "").trim(),
-                    description: String(dataMap["description:"] || "").trim(),
-                    owner: String(dataMap["owner:"] || "").trim(),
-                    department: String(dataMap["department:"] || "").trim(),
-                    incidents,
+                    criticality: pickString(dataMap, "application criticality", "application criticality:", "criticality:", "criticality"),
+                    description: pickString(dataMap, "description", "description:"),
+                    owner: pickString(dataMap, "owner", "owner:"),
+                    department: pickString(dataMap, "department", "department:"),
+                    incidents: incidentsSev1 + incidentsSev2 + incidentsSev3,
+                    incidentsSev1,
+                    incidentsSev2,
+                    incidentsSev3,
                     auditFindings,
-                    vaptFindings,
-                    passwordComplexity: String(dataMap["password complexity as per ispg:"] || "").trim(),
+                    vaptFindings: vaptFindingsTotal,
+                    vaptCritical,
+                    vaptHigh,
+                    vaptMedium,
+                    vaptLow,
+                    passwordComplexity,
                     mfa,
-                    endOfLife: String(dataMap["end-of-life (next 12 months):"] || "").trim(),
+                    endOfLife: endOfLifeRaw,
+                    eolWithin12Months,
                     siemIntegration,
                     encryption,
                     capacityManagement,
                     wafEnabled,
+                    internetFacing,
+                    thirdPartyInvolvement,
+                    hostingExternal,
                     projects,
                     projectCount: projects.length,
                     riskScore: 0
                 };
-                // Calculate risk score
                 application.riskScore = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["calculateRiskScore"])(application);
                 console.log("[v0] Parsed application:", application);
                 resolve([
@@ -717,31 +864,78 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$
 ;
 ;
 function RiskBreakdownComponent({ breakdown }) {
-    const metrics = [
+    const rows = [
         {
-            label: "Incidents",
-            value: breakdown.incidentScore,
-            color: "bg-red-500"
+            label: "Application Criticality",
+            value: breakdown.applicationCriticality
         },
         {
-            label: "Audit Findings",
-            value: breakdown.auditScore,
-            color: "bg-orange-500"
+            label: "Internet Facing",
+            value: breakdown.internetFacing
         },
         {
-            label: "VAPT Findings",
-            value: breakdown.vaptScore,
-            color: "bg-yellow-500"
+            label: "Third Party Involvement",
+            value: breakdown.thirdPartyInvolvement
         },
         {
-            label: "Projects",
-            value: breakdown.projectScore,
-            color: "bg-blue-500"
+            label: "Hosting Location (external)",
+            value: breakdown.hostingLocation
         },
         {
-            label: "Security Gap",
-            value: breakdown.securityScore,
-            color: "bg-purple-500"
+            label: "Incidents — Severity 1 (×4)",
+            value: breakdown.incidentsSeverity1
+        },
+        {
+            label: "Incidents — Severity 2 (×2)",
+            value: breakdown.incidentsSeverity2
+        },
+        {
+            label: "Incidents — Severity 3 (×1)",
+            value: breakdown.incidentsSeverity3
+        },
+        {
+            label: "Audit Findings (×1)",
+            value: breakdown.auditFindings
+        },
+        {
+            label: "VAPT — Critical (×4)",
+            value: breakdown.vaptCritical
+        },
+        {
+            label: "VAPT — High (×3)",
+            value: breakdown.vaptHigh
+        },
+        {
+            label: "VAPT — Medium (×2)",
+            value: breakdown.vaptMedium
+        },
+        {
+            label: "VAPT — Low (×1)",
+            value: breakdown.vaptLow
+        },
+        {
+            label: "MFA (disabled adds risk)",
+            value: breakdown.mfa
+        },
+        {
+            label: "SIEM Integration (missing adds risk)",
+            value: breakdown.siem
+        },
+        {
+            label: "Encryption (missing adds risk)",
+            value: breakdown.encryption
+        },
+        {
+            label: "Capacity Management (missing adds risk)",
+            value: breakdown.capacityManagement
+        },
+        {
+            label: "WAF (if internet-facing)",
+            value: breakdown.waf
+        },
+        {
+            label: "EOL (next 12 months)",
+            value: breakdown.eol
         }
     ];
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -749,74 +943,72 @@ function RiskBreakdownComponent({ breakdown }) {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("h4", {
                 className: "text-sm font-semibold text-white mb-4",
-                children: "Risk Breakdown"
+                children: "Risk score breakdown (points)"
             }, void 0, false, {
                 fileName: "[project]/components/risk-breakdown.tsx",
-                lineNumber: 21,
+                lineNumber: 34,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "space-y-3",
-                children: metrics.map((metric)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "space-y-1",
+                className: "space-y-2 max-h-64 overflow-y-auto pr-1",
+                children: rows.map((row)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                        className: "flex justify-between gap-2 text-xs",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "flex justify-between text-xs",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "text-slate-300",
-                                        children: metric.label
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/risk-breakdown.tsx",
-                                        lineNumber: 26,
-                                        columnNumber: 15
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "text-slate-400",
-                                        children: metric.value.toFixed(1)
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/risk-breakdown.tsx",
-                                        lineNumber: 27,
-                                        columnNumber: 15
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/components/risk-breakdown.tsx",
-                                lineNumber: 25,
-                                columnNumber: 13
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "w-full bg-slate-700 rounded-full h-2",
-                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                    className: `${metric.color} h-2 rounded-full transition-all`,
-                                    style: {
-                                        width: `${metric.value}%`
-                                    }
-                                }, void 0, false, {
-                                    fileName: "[project]/components/risk-breakdown.tsx",
-                                    lineNumber: 30,
-                                    columnNumber: 15
-                                }, this)
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-slate-300",
+                                children: row.label
                             }, void 0, false, {
                                 fileName: "[project]/components/risk-breakdown.tsx",
-                                lineNumber: 29,
+                                lineNumber: 38,
+                                columnNumber: 13
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "text-slate-400 shrink-0 tabular-nums",
+                                children: row.value
+                            }, void 0, false, {
+                                fileName: "[project]/components/risk-breakdown.tsx",
+                                lineNumber: 39,
                                 columnNumber: 13
                             }, this)
                         ]
-                    }, metric.label, true, {
+                    }, row.label, true, {
                         fileName: "[project]/components/risk-breakdown.tsx",
-                        lineNumber: 24,
+                        lineNumber: 37,
                         columnNumber: 11
                     }, this))
             }, void 0, false, {
                 fileName: "[project]/components/risk-breakdown.tsx",
-                lineNumber: 22,
+                lineNumber: 35,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: "border-t border-slate-600 mt-3 pt-3 flex justify-between text-sm font-semibold text-white",
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                        children: "Total"
+                    }, void 0, false, {
+                        fileName: "[project]/components/risk-breakdown.tsx",
+                        lineNumber: 44,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                        className: "tabular-nums",
+                        children: breakdown.totalScore
+                    }, void 0, false, {
+                        fileName: "[project]/components/risk-breakdown.tsx",
+                        lineNumber: 45,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/risk-breakdown.tsx",
+                lineNumber: 43,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/risk-breakdown.tsx",
-        lineNumber: 20,
+        lineNumber: 33,
         columnNumber: 5
     }, this);
 }
@@ -865,12 +1057,12 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                         className: "w-5 h-5"
                     }, void 0, false, {
                         fileName: "[project]/components/application-modal.tsx",
-                        lineNumber: 32,
+                        lineNumber: 38,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/application-modal.tsx",
-                    lineNumber: 26,
+                    lineNumber: 32,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -884,7 +1076,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                     children: application.name
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 38,
+                                    lineNumber: 44,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -892,13 +1084,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                     children: application.description || "No description provided"
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 39,
+                                    lineNumber: 45,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 37,
+                            lineNumber: 43,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -912,7 +1104,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "Risk Assessment"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 45,
+                                            lineNumber: 51,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -920,54 +1112,44 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: riskLevel
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 46,
+                                            lineNumber: 52,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 44,
+                                    lineNumber: 50,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "text-4xl font-bold text-white mb-3",
-                                    children: [
-                                        application.riskScore.toFixed(1),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                            className: "text-lg text-slate-400 ml-2",
-                                            children: "/ 100"
-                                        }, void 0, false, {
-                                            fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 50,
-                                            columnNumber: 15
-                                        }, this)
-                                    ]
-                                }, void 0, true, {
+                                    children: application.riskScore.toFixed(1)
+                                }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 48,
+                                    lineNumber: 54,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "w-full bg-slate-700 rounded-full h-3",
                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: `h-3 rounded-full transition-all ${application.riskScore >= 75 ? "bg-red-500" : application.riskScore >= 50 ? "bg-orange-500" : application.riskScore >= 25 ? "bg-yellow-500" : "bg-green-500"}`,
+                                        className: `h-3 rounded-full transition-all ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskBarToneClass"])(application.riskScore)}`,
                                         style: {
-                                            width: `${application.riskScore}%`
+                                            width: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskScoreBarPercent"])(application.riskScore)}%`
                                         }
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-modal.tsx",
-                                        lineNumber: 53,
+                                        lineNumber: 56,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 52,
+                                    lineNumber: 55,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 43,
+                            lineNumber: 49,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -981,7 +1163,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "Application Details"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 72,
+                                            lineNumber: 67,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -994,7 +1176,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: "Owner"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 76,
+                                                            lineNumber: 71,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1002,13 +1184,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: application.owner
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 77,
+                                                            lineNumber: 72,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/application-modal.tsx",
-                                                    lineNumber: 75,
+                                                    lineNumber: 70,
                                                     columnNumber: 19
                                                 }, this),
                                                 application.department && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1018,7 +1200,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: "Department"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 82,
+                                                            lineNumber: 77,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1026,13 +1208,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: application.department
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 83,
+                                                            lineNumber: 78,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/application-modal.tsx",
-                                                    lineNumber: 81,
+                                                    lineNumber: 76,
                                                     columnNumber: 19
                                                 }, this),
                                                 application.criticality && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1042,7 +1224,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: "Criticality"
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 88,
+                                                            lineNumber: 83,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1050,38 +1232,38 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                                             children: application.criticality
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/application-modal.tsx",
-                                                            lineNumber: 89,
+                                                            lineNumber: 84,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/application-modal.tsx",
-                                                    lineNumber: 87,
+                                                    lineNumber: 82,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 73,
+                                            lineNumber: 68,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 71,
+                                    lineNumber: 66,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$risk$2d$breakdown$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["RiskBreakdownComponent"], {
                                     breakdown: breakdown
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 96,
+                                    lineNumber: 91,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 69,
+                            lineNumber: 64,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1095,7 +1277,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "Incidents"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 102,
+                                            lineNumber: 97,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1103,13 +1285,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: application.incidents
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 103,
+                                            lineNumber: 98,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 101,
+                                    lineNumber: 96,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1120,7 +1302,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "Audit Findings"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 106,
+                                            lineNumber: 101,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1128,13 +1310,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: application.auditFindings
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 107,
+                                            lineNumber: 102,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 105,
+                                    lineNumber: 100,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1145,7 +1327,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "VAPT Findings"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 110,
+                                            lineNumber: 105,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1153,13 +1335,13 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: application.vaptFindings
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 111,
+                                            lineNumber: 106,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 109,
+                                    lineNumber: 104,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1170,7 +1352,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: "Projects"
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 114,
+                                            lineNumber: 109,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1178,19 +1360,19 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: application.projectCount
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 115,
+                                            lineNumber: 110,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 113,
+                                    lineNumber: 108,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 100,
+                            lineNumber: 95,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1201,75 +1383,103 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                     children: "Security Features"
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 121,
+                                    lineNumber: 116,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "grid grid-cols-2 md:grid-cols-3 gap-3",
                                     children: [
-                                        {
-                                            label: "Multi-Factor Authentication",
-                                            value: application.mfa
-                                        },
-                                        {
-                                            label: "Encryption",
-                                            value: application.encryption
-                                        },
-                                        {
-                                            label: "SIEM Integration",
-                                            value: application.siemIntegration
-                                        },
-                                        {
-                                            label: "WAF Enabled",
-                                            value: application.wafEnabled
-                                        },
-                                        {
-                                            label: "Capacity Management",
-                                            value: application.capacityManagement
-                                        },
-                                        {
-                                            label: "Password Complexity",
-                                            value: !!application.passwordComplexity
-                                        }
-                                    ].map((feature)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            className: `p-3 rounded text-xs font-medium ${feature.value ? "bg-green-900/30 text-green-300 border border-green-800/50" : "bg-red-900/30 text-red-300 border border-red-800/50"}`,
+                                        [
+                                            {
+                                                label: "Multi-Factor Authentication",
+                                                value: application.mfa
+                                            },
+                                            {
+                                                label: "Encryption",
+                                                value: application.encryption
+                                            },
+                                            {
+                                                label: "SIEM Integration",
+                                                value: application.siemIntegration
+                                            },
+                                            {
+                                                label: "Capacity Management",
+                                                value: application.capacityManagement
+                                            },
+                                            {
+                                                label: "Password Complexity",
+                                                value: !!application.passwordComplexity
+                                            }
+                                        ].map((feature)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: `p-3 rounded text-xs font-medium ${feature.value ? "bg-green-900/30 text-green-300 border border-green-800/50" : "bg-red-900/30 text-red-300 border border-red-800/50"}`,
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "flex items-center gap-2",
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                            children: feature.value ? "✓" : "✗"
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/components/application-modal.tsx",
+                                                            lineNumber: 134,
+                                                            columnNumber: 21
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                            children: feature.label
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/components/application-modal.tsx",
+                                                            lineNumber: 135,
+                                                            columnNumber: 21
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/components/application-modal.tsx",
+                                                    lineNumber: 133,
+                                                    columnNumber: 19
+                                                }, this)
+                                            }, feature.label, false, {
+                                                fileName: "[project]/components/application-modal.tsx",
+                                                lineNumber: 125,
+                                                columnNumber: 17
+                                            }, this)),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: `p-3 rounded text-xs font-medium ${application.wafEnabled === true ? "bg-green-900/30 text-green-300 border border-green-800/50" : application.wafEnabled === false ? "bg-red-900/30 text-red-300 border border-red-800/50" : "bg-slate-700/50 text-slate-300 border border-slate-600/50"}`,
                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "flex items-center gap-2",
                                                 children: [
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                        children: feature.value ? "✓" : "✗"
+                                                        children: application.wafEnabled === true ? "✓" : application.wafEnabled === false ? "✗" : "—"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/application-modal.tsx",
-                                                        lineNumber: 140,
-                                                        columnNumber: 21
+                                                        lineNumber: 149,
+                                                        columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                        children: feature.label
+                                                        children: "WAF Enabled"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/application-modal.tsx",
-                                                        lineNumber: 141,
-                                                        columnNumber: 21
+                                                        lineNumber: 152,
+                                                        columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/application-modal.tsx",
-                                                lineNumber: 139,
-                                                columnNumber: 19
+                                                lineNumber: 148,
+                                                columnNumber: 17
                                             }, this)
-                                        }, feature.label, false, {
+                                        }, void 0, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 131,
-                                            columnNumber: 17
-                                        }, this))
-                                }, void 0, false, {
+                                            lineNumber: 139,
+                                            columnNumber: 15
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 122,
+                                    lineNumber: 117,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 120,
+                            lineNumber: 115,
                             columnNumber: 11
                         }, this),
                         application.projects.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1280,7 +1490,7 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                     children: "Related Projects"
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 151,
+                                    lineNumber: 161,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1290,18 +1500,18 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                                             children: project
                                         }, project, false, {
                                             fileName: "[project]/components/application-modal.tsx",
-                                            lineNumber: 154,
+                                            lineNumber: 164,
                                             columnNumber: 19
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/components/application-modal.tsx",
-                                    lineNumber: 152,
+                                    lineNumber: 162,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 150,
+                            lineNumber: 160,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1310,24 +1520,24 @@ function ApplicationModal({ application, breakdown, isOpen, onClose }) {
                             children: "Close"
                         }, void 0, false, {
                             fileName: "[project]/components/application-modal.tsx",
-                            lineNumber: 165,
+                            lineNumber: 175,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/application-modal.tsx",
-                    lineNumber: 35,
+                    lineNumber: 41,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/application-modal.tsx",
-            lineNumber: 25,
+            lineNumber: 31,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/application-modal.tsx",
-        lineNumber: 24,
+        lineNumber: 30,
         columnNumber: 5
     }, this);
 }
@@ -1386,12 +1596,12 @@ function ApplicationCard({ application, onRemove }) {
                             className: "w-4 h-4"
                         }, void 0, false, {
                             fileName: "[project]/components/application-card.tsx",
-                            lineNumber: 38,
+                            lineNumber: 44,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/components/application-card.tsx",
-                        lineNumber: 29,
+                        lineNumber: 35,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1405,7 +1615,7 @@ function ApplicationCard({ application, onRemove }) {
                                         children: application.name
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 44,
+                                        lineNumber: 50,
                                         columnNumber: 13
                                     }, this),
                                     application.department && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1413,13 +1623,13 @@ function ApplicationCard({ application, onRemove }) {
                                         children: application.department
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 45,
+                                        lineNumber: 51,
                                         columnNumber: 40
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/application-card.tsx",
-                                lineNumber: 43,
+                                lineNumber: 49,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1433,7 +1643,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: "RISK RATING"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 51,
+                                                lineNumber: 57,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1441,13 +1651,13 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: riskLevel
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 52,
+                                                lineNumber: 58,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 50,
+                                        lineNumber: 56,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1455,30 +1665,30 @@ function ApplicationCard({ application, onRemove }) {
                                         children: application.riskScore.toFixed(1)
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 56,
+                                        lineNumber: 62,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                         className: "mt-3 w-full bg-slate-600 rounded-full h-2",
                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            className: `h-2 rounded-full transition-all ${application.riskScore >= 75 ? "bg-red-500" : application.riskScore >= 50 ? "bg-orange-500" : application.riskScore >= 25 ? "bg-yellow-500" : "bg-green-500"}`,
+                                            className: `h-2 rounded-full transition-all ${(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskBarToneClass"])(application.riskScore)}`,
                                             style: {
-                                                width: `${application.riskScore}%`
+                                                width: `${(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskScoreBarPercent"])(application.riskScore)}%`
                                             }
                                         }, void 0, false, {
                                             fileName: "[project]/components/application-card.tsx",
-                                            lineNumber: 58,
+                                            lineNumber: 64,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 57,
+                                        lineNumber: 63,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/application-card.tsx",
-                                lineNumber: 49,
+                                lineNumber: 55,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1492,7 +1702,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: "Incidents"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 76,
+                                                lineNumber: 74,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1500,13 +1710,13 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: application.incidents
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 77,
+                                                lineNumber: 75,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 75,
+                                        lineNumber: 73,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1517,7 +1727,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: "Audit"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 80,
+                                                lineNumber: 78,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1525,13 +1735,13 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: application.auditFindings
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 81,
+                                                lineNumber: 79,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 79,
+                                        lineNumber: 77,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1542,7 +1752,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: "VAPT"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 84,
+                                                lineNumber: 82,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1550,13 +1760,13 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: application.vaptFindings
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 85,
+                                                lineNumber: 83,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 83,
+                                        lineNumber: 81,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1567,7 +1777,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: "Projects"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 88,
+                                                lineNumber: 86,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1575,19 +1785,19 @@ function ApplicationCard({ application, onRemove }) {
                                                 children: application.projectCount
                                             }, void 0, false, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 89,
+                                                lineNumber: 87,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 87,
+                                        lineNumber: 85,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/application-card.tsx",
-                                lineNumber: 74,
+                                lineNumber: 72,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1598,7 +1808,7 @@ function ApplicationCard({ application, onRemove }) {
                                         children: "Security Status"
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 95,
+                                        lineNumber: 93,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1612,7 +1822,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 97,
+                                                lineNumber: 95,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1623,7 +1833,7 @@ function ApplicationCard({ application, onRemove }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 102,
+                                                lineNumber: 100,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1634,30 +1844,52 @@ function ApplicationCard({ application, onRemove }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 107,
+                                                lineNumber: 105,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                className: `text-xs p-2 rounded ${application.wafEnabled ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`,
+                                                className: `text-xs p-2 rounded ${application.wafEnabled === true ? "bg-green-900/30 text-green-300" : application.wafEnabled === false ? "bg-red-900/30 text-red-300" : "bg-slate-700/50 text-slate-300"}`,
                                                 children: [
                                                     "WAF: ",
-                                                    application.wafEnabled ? "✓" : "✗"
+                                                    application.wafEnabled === true ? "✓" : application.wafEnabled === false ? "✗" : "N/A"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/application-card.tsx",
-                                                lineNumber: 112,
+                                                lineNumber: 110,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: `text-xs p-2 rounded ${application.capacityManagement ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`,
+                                                children: [
+                                                    "Capacity Management: ",
+                                                    application.capacityManagement ? "✓" : "✗"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/components/application-card.tsx",
+                                                lineNumber: 121,
+                                                columnNumber: 15
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: `text-xs p-2 rounded ${application.passwordComplexity ? "bg-green-900/30 text-green-300" : "bg-red-900/30 text-red-300"}`,
+                                                children: [
+                                                    "Password Complexity: ",
+                                                    application.passwordComplexity ? "✓" : "✗"
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/components/application-card.tsx",
+                                                lineNumber: 126,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 96,
+                                        lineNumber: 94,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/application-card.tsx",
-                                lineNumber: 94,
+                                lineNumber: 92,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1672,32 +1904,32 @@ function ApplicationCard({ application, onRemove }) {
                                         children: "View Details"
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 129,
+                                        lineNumber: 143,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$chevron$2d$right$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__ChevronRight$3e$__["ChevronRight"], {
                                         className: "w-4 h-4"
                                     }, void 0, false, {
                                         fileName: "[project]/components/application-card.tsx",
-                                        lineNumber: 130,
+                                        lineNumber: 144,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/application-card.tsx",
-                                lineNumber: 121,
+                                lineNumber: 135,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/application-card.tsx",
-                        lineNumber: 41,
+                        lineNumber: 47,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/application-card.tsx",
-                lineNumber: 24,
+                lineNumber: 30,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$application$2d$modal$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ApplicationModal"], {
@@ -1707,7 +1939,7 @@ function ApplicationCard({ application, onRemove }) {
                 onClose: ()=>setShowDetails(false)
             }, void 0, false, {
                 fileName: "[project]/components/application-card.tsx",
-                lineNumber: 136,
+                lineNumber: 150,
                 columnNumber: 7
             }, this)
         ]
@@ -2449,6 +2681,8 @@ __turbopack_context__.s([
     "generateHTMLReport",
     ()=>generateHTMLReport
 ]);
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/risk-calculator.ts [app-client] (ecmascript)");
+;
 function exportToCSV(applications) {
     if (applications.length === 0) {
         alert("No applications to export");
@@ -2472,7 +2706,7 @@ function exportToCSV(applications) {
     ];
     // Create CSV rows
     const rows = applications.map((app)=>{
-        const riskLevel = app.riskScore >= 75 ? "Critical" : app.riskScore >= 50 ? "High" : app.riskScore >= 25 ? "Medium" : "Low";
+        const riskLevel = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore);
         return [
             `"${app.name}"`,
             app.riskScore.toFixed(1),
@@ -2518,10 +2752,10 @@ function exportToJSON(applications) {
         exportDate: new Date().toISOString(),
         totalApplications: applications.length,
         summary: {
-            critical: applications.filter((app)=>app.riskScore >= 75).length,
-            high: applications.filter((app)=>app.riskScore >= 50 && app.riskScore < 75).length,
-            medium: applications.filter((app)=>app.riskScore >= 25 && app.riskScore < 50).length,
-            low: applications.filter((app)=>app.riskScore < 25).length
+            critical: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Critical").length,
+            high: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "High").length,
+            medium: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Medium").length,
+            low: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Low").length
         },
         applications: applications
     };
@@ -2542,15 +2776,15 @@ function exportToJSON(applications) {
 }
 function generateHTMLReport(applications) {
     const summary = {
-        critical: applications.filter((app)=>app.riskScore >= 75).length,
-        high: applications.filter((app)=>app.riskScore >= 50 && app.riskScore < 75).length,
-        medium: applications.filter((app)=>app.riskScore >= 25 && app.riskScore < 50).length,
-        low: applications.filter((app)=>app.riskScore < 25).length
+        critical: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Critical").length,
+        high: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "High").length,
+        medium: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Medium").length,
+        low: applications.filter((app)=>(0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore) === "Low").length
     };
     const avgRisk = applications.length > 0 ? (applications.reduce((sum, app)=>sum + app.riskScore, 0) / applications.length).toFixed(1) : 0;
     const applicationsHTML = applications.sort((a, b)=>b.riskScore - a.riskScore).map((app)=>{
-        const riskLevel = app.riskScore >= 75 ? "Critical" : app.riskScore >= 50 ? "High" : app.riskScore >= 25 ? "Medium" : "Low";
-        const riskColor = app.riskScore >= 75 ? "#dc2626" : app.riskScore >= 50 ? "#ea580c" : app.riskScore >= 25 ? "#eab308" : "#16a34a";
+        const riskLevel = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevel"])(app.riskScore);
+        const riskColor = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskLevelHex"])(app.riskScore);
         return `
         <tr>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${app.name}</td>
@@ -2958,9 +3192,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$dashboard$2d$s
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$application$2d$filters$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/application-filters.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$export$2d$panel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/export-panel.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$hooks$2f$use$2d$applications$2d$storage$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/hooks/use-applications-storage.ts [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/risk-calculator.ts [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 "use client";
+;
 ;
 ;
 ;
@@ -2984,8 +3220,7 @@ function Home() {
             if (riskFilter !== "all") {
                 filtered = filtered.filter({
                     "Home.useMemo[filteredAndSortedApps]": (app)=>{
-                        const level = app.riskScore >= 75 ? "critical" : app.riskScore >= 50 ? "high" : app.riskScore >= 25 ? "medium" : "low";
-                        return level === riskFilter;
+                        return (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$risk$2d$calculator$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getRiskCategoryKey"])(app.riskScore) === riskFilter;
                     }
                 }["Home.useMemo[filteredAndSortedApps]"]);
             }
@@ -3030,7 +3265,7 @@ function Home() {
                             children: "Application Risk Dashboard"
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 59,
+                            lineNumber: 58,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -3038,13 +3273,13 @@ function Home() {
                             children: "Assess and monitor application security risk across your portfolio"
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 60,
+                            lineNumber: 59,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 58,
+                    lineNumber: 57,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -3053,12 +3288,12 @@ function Home() {
                         onApplicationsAdded: handleApplicationsAdded
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 65,
+                        lineNumber: 64,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 64,
+                    lineNumber: 63,
                     columnNumber: 9
                 }, this),
                 applications.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
@@ -3067,14 +3302,14 @@ function Home() {
                             applications: applications
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 71,
+                            lineNumber: 70,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$export$2d$panel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ExportPanel"], {
                             applications: applications
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 73,
+                            lineNumber: 72,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$application$2d$filters$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ApplicationFilters"], {
@@ -3084,7 +3319,7 @@ function Home() {
                             onSortChange: setSortBy
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 76,
+                            lineNumber: 75,
                             columnNumber: 13
                         }, this)
                     ]
@@ -3094,18 +3329,18 @@ function Home() {
                     onRemove: removeApplication
                 }, void 0, false, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 86,
+                    lineNumber: 85,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/app/page.tsx",
-            lineNumber: 56,
+            lineNumber: 55,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 55,
+        lineNumber: 54,
         columnNumber: 5
     }, this);
 }

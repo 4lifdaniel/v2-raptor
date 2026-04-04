@@ -3,7 +3,13 @@
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { getRiskColor, getRiskLevel, type RiskBreakdown } from "@/lib/risk-calculator"
+import {
+  getRiskColor,
+  getRiskLevel,
+  getRiskScoreBarPercent,
+  getRiskBarToneClass,
+  type RiskBreakdown,
+} from "@/lib/risk-calculator"
 import { RiskBreakdownComponent } from "./risk-breakdown"
 import type { Application } from "@/types/application"
 
@@ -45,22 +51,11 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
               <h3 className="text-lg font-semibold text-white">Risk Assessment</h3>
               <div className={`px-4 py-2 rounded-full font-semibold text-sm ${riskColor}`}>{riskLevel}</div>
             </div>
-            <div className="text-4xl font-bold text-white mb-3">
-              {application.riskScore.toFixed(1)}
-              <span className="text-lg text-slate-400 ml-2">/ 100</span>
-            </div>
+            <div className="text-4xl font-bold text-white mb-3">{application.riskScore.toFixed(1)}</div>
             <div className="w-full bg-slate-700 rounded-full h-3">
               <div
-                className={`h-3 rounded-full transition-all ${
-                  application.riskScore >= 75
-                    ? "bg-red-500"
-                    : application.riskScore >= 50
-                      ? "bg-orange-500"
-                      : application.riskScore >= 25
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
-                }`}
-                style={{ width: `${application.riskScore}%` }}
+                className={`h-3 rounded-full transition-all ${getRiskBarToneClass(application.riskScore)}`}
+                style={{ width: `${getRiskScoreBarPercent(application.riskScore)}%` }}
               />
             </div>
           </div>
@@ -124,7 +119,6 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
                 { label: "Multi-Factor Authentication", value: application.mfa },
                 { label: "Encryption", value: application.encryption },
                 { label: "SIEM Integration", value: application.siemIntegration },
-                { label: "WAF Enabled", value: application.wafEnabled },
                 { label: "Capacity Management", value: application.capacityManagement },
                 { label: "Password Complexity", value: !!application.passwordComplexity },
               ].map((feature) => (
@@ -142,6 +136,22 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
                   </div>
                 </div>
               ))}
+              <div
+                className={`p-3 rounded text-xs font-medium ${
+                  application.wafEnabled === true
+                    ? "bg-green-900/30 text-green-300 border border-green-800/50"
+                    : application.wafEnabled === false
+                      ? "bg-red-900/30 text-red-300 border border-red-800/50"
+                      : "bg-slate-700/50 text-slate-300 border border-slate-600/50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>
+                    {application.wafEnabled === true ? "✓" : application.wafEnabled === false ? "✗" : "—"}
+                  </span>
+                  <span>WAF Enabled</span>
+                </div>
+              </div>
             </div>
           </Card>
 

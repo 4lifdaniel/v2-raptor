@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { promises as fs } from "fs"
 import path from "path"
 import type { Application } from "@/types/application"
+import { calculateRiskScore } from "@/lib/risk-calculator"
 
 const DATA_FILE = path.join(process.cwd(), "data", "applications.json")
 
@@ -33,10 +34,14 @@ async function writeApplications(applications: Application[]): Promise<void> {
   await fs.writeFile(DATA_FILE, JSON.stringify(applications, null, 2), "utf-8")
 }
 
+function withComputedRiskScore(app: Application): Application {
+  return { ...app, riskScore: calculateRiskScore(app) }
+}
+
 // GET: Retrieve all applications
 export async function GET() {
   try {
-    const applications = await readApplications()
+    const applications = (await readApplications()).map(withComputedRiskScore)
     return NextResponse.json(applications)
   } catch (error) {
     console.error("Error reading applications:", error)
@@ -53,7 +58,8 @@ export async function POST(request: Request) {
     // Merge applications: overwrite if name matches, otherwise add
     const updated = [...existingApps]
 
-    for (const newApp of newApps) {
+    for (const raw of newApps) {
+      const newApp = withComputedRiskScore(raw)
       const existingIndex = updated.findIndex((app) => app.name.toLowerCase() === newApp.name.toLowerCase())
 
       if (existingIndex >= 0) {

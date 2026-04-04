@@ -1,4 +1,5 @@
 import type { Application } from "@/types/application"
+import { getRiskLevel, getRiskLevelHex } from "@/lib/risk-calculator"
 
 export function exportToCSV(applications: Application[]): void {
   if (applications.length === 0) {
@@ -25,8 +26,7 @@ export function exportToCSV(applications: Application[]): void {
 
   // Create CSV rows
   const rows = applications.map((app) => {
-    const riskLevel =
-      app.riskScore >= 75 ? "Critical" : app.riskScore >= 50 ? "High" : app.riskScore >= 25 ? "Medium" : "Low"
+    const riskLevel = getRiskLevel(app.riskScore)
 
     return [
       `"${app.name}"`,
@@ -70,10 +70,10 @@ export function exportToJSON(applications: Application[]): void {
     exportDate: new Date().toISOString(),
     totalApplications: applications.length,
     summary: {
-      critical: applications.filter((app) => app.riskScore >= 75).length,
-      high: applications.filter((app) => app.riskScore >= 50 && app.riskScore < 75).length,
-      medium: applications.filter((app) => app.riskScore >= 25 && app.riskScore < 50).length,
-      low: applications.filter((app) => app.riskScore < 25).length,
+      critical: applications.filter((app) => getRiskLevel(app.riskScore) === "Critical").length,
+      high: applications.filter((app) => getRiskLevel(app.riskScore) === "High").length,
+      medium: applications.filter((app) => getRiskLevel(app.riskScore) === "Medium").length,
+      low: applications.filter((app) => getRiskLevel(app.riskScore) === "Low").length,
     },
     applications: applications,
   }
@@ -92,10 +92,10 @@ export function exportToJSON(applications: Application[]): void {
 
 export function generateHTMLReport(applications: Application[]): string {
   const summary = {
-    critical: applications.filter((app) => app.riskScore >= 75).length,
-    high: applications.filter((app) => app.riskScore >= 50 && app.riskScore < 75).length,
-    medium: applications.filter((app) => app.riskScore >= 25 && app.riskScore < 50).length,
-    low: applications.filter((app) => app.riskScore < 25).length,
+    critical: applications.filter((app) => getRiskLevel(app.riskScore) === "Critical").length,
+    high: applications.filter((app) => getRiskLevel(app.riskScore) === "High").length,
+    medium: applications.filter((app) => getRiskLevel(app.riskScore) === "Medium").length,
+    low: applications.filter((app) => getRiskLevel(app.riskScore) === "Low").length,
   }
 
   const avgRisk =
@@ -106,11 +106,8 @@ export function generateHTMLReport(applications: Application[]): string {
   const applicationsHTML = applications
     .sort((a, b) => b.riskScore - a.riskScore)
     .map((app) => {
-      const riskLevel =
-        app.riskScore >= 75 ? "Critical" : app.riskScore >= 50 ? "High" : app.riskScore >= 25 ? "Medium" : "Low"
-
-      const riskColor =
-        app.riskScore >= 75 ? "#dc2626" : app.riskScore >= 50 ? "#ea580c" : app.riskScore >= 25 ? "#eab308" : "#16a34a"
+      const riskLevel = getRiskLevel(app.riskScore)
+      const riskColor = getRiskLevelHex(app.riskScore)
 
       return `
         <tr>
