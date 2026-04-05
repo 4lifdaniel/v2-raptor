@@ -5,6 +5,11 @@
 /.pnp
 .pnp.js
 .yarn/install-state.gz
+/frontend/node_modules
+/frontend/.pnp
+/frontend/.pnp.js
+/frontend/.yarn/install-state.gz
+
 
 # testing
 /coverage
@@ -12,13 +17,17 @@
 # next.js
 /.next/
 /out/
+/frontend/.next/
+/frontend/out/
 
 # production
 /build
+/frontend/build
 
 # misc
 .DS_Store
 *.pem
+/frontend/.DS_Store
 
 # debug
 npm-debug.log*
@@ -27,13 +36,16 @@ yarn-error.log*
 
 # local env files
 .env*.local
+/frontend/.env*.local
 
 # vercel
-.vercel
+/frontend/.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
 
 # application data (keep structure but ignore uploaded data if needed)
 # Uncomment the line below if you don't want to commit application data
