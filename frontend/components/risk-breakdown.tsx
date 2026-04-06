@@ -2,15 +2,28 @@
 
 import { Card } from "@/components/ui/card"
 import type { RiskBreakdown } from "@/lib/risk-calculator"
+// import type { Application } from "@/types/application"
+import type { Application } from "@/types/application"
+import { useState } from "react"
+
+
 
 interface RiskBreakdownProps {
   breakdown: RiskBreakdown
+  application: Application
 }
 
-export function RiskBreakdownComponent({ breakdown }: RiskBreakdownProps) {
-  const rows: { label: string; value: number }[] = [
-    { label: "Application Criticality", value: breakdown.applicationCriticality },
-    { label: "Internet Facing", value: breakdown.internetFacing },
+// interface ApplicationModalProps {
+//   application: Application
+//   breakdown: RiskBreakdown
+//   isOpen: boolean
+//   onClose: () => void
+// }
+
+export function RiskBreakdownComponent({ breakdown, application }: RiskBreakdownProps) {
+  const rows: { label: string; value: number | boolean | string }[] = [
+    // { label: "Application Criticality", value: application.criticality },
+    { label: "Internet Facing", value: breakdown.internetFacing ? "Yes" : "No" },
     { label: "Third Party Involvement", value: breakdown.thirdPartyInvolvement },
     { label: "Hosting Location (external)", value: breakdown.hostingLocation },
     { label: "Incidents — Severity 1 (×4)", value: breakdown.incidentsSeverity1 },

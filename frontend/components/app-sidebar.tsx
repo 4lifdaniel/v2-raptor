@@ -20,9 +20,8 @@ export function AppSidebar() {
     >
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-4">
         <Link href="/" className="block">
-          <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">Risk Assessment Portal</span>
+          <span className="text-md font-semibold tracking-tight text-slate-900 dark:text-white">Risk Assessment Portal</span>
         </Link>
-        <ThemeToggle />
       </div>
 
       <nav className="flex flex-1 flex-col gap-6 p-4">
@@ -40,7 +39,7 @@ export function AppSidebar() {
                 )}
               >
                 <LayoutDashboard className="size-4 shrink-0 opacity-80" aria-hidden />
-                Overview
+                Main Dashboard
               </Link>
             </li>
             <li>
@@ -54,14 +53,14 @@ export function AppSidebar() {
                 )}
               >
                 <AppWindow className="size-4 shrink-0 opacity-80" aria-hidden />
-                Application Details
+                My Applications
               </Link>
             </li>
           </ul>
         </div>
 
         <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
-          <p className="px-2 text-sm leading-relaxed text-slate-500">Coming soon, work in progress</p>
+          <ThemeToggle />
         </div>
       </nav>
     </aside>

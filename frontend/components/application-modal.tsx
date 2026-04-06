@@ -88,7 +88,7 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
             </Card>
 
             {/* Risk Breakdown */}
-            <RiskBreakdownComponent breakdown={breakdown} />
+            <RiskBreakdownComponent breakdown={breakdown} application={application} />
           </div>
 
           {/* Metrics Details */}

@@ -163,7 +163,7 @@ export default function ApplicationDetailPage() {
           {/* Card 3: Technical Controls */}
           <div className="bg-white dark:bg-slate-900 rounded-xl p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
             <p className="text-xs font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase mb-6 ml-2">
-              Technical Controls
+              Security Controls
             </p>
             <div className="space-y-3">
               <ControlItem label="SIEM Integration" icon={Activity} active={!!application.siemIntegration} />

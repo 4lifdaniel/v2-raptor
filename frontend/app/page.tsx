@@ -55,7 +55,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Application Risk Dashboard</h1>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Application Risk Main Dashboard</h1>
           <p className="text-slate-500 dark:text-slate-400">Assess and monitor application security risk across your portfolio</p>
         </div>
 
