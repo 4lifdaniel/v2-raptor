@@ -12,15 +12,15 @@ interface ApplicationFiltersProps {
 
 export function ApplicationFilters({ riskFilter, onRiskFilterChange, sortBy, onSortChange }: ApplicationFiltersProps) {
   return (
-    <Card className="border border-slate-700 bg-slate-800/50 p-4 mb-6">
+    <Card className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4 mb-6">
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
-          <label className="block text-sm font-medium text-white mb-2">Filter by Risk Level</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-white mb-2">Filter by Risk Level</label>
           <Select value={riskFilter} onValueChange={onRiskFilterChange}>
-            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+            <SelectTrigger className="bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600">
+            <SelectContent className="bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
               <SelectItem value="all">All Risk Levels</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
               <SelectItem value="high">High</SelectItem>
@@ -31,12 +31,12 @@ export function ApplicationFilters({ riskFilter, onRiskFilterChange, sortBy, onS
         </div>
 
         <div className="flex-1">
-          <label className="block text-sm font-medium text-white mb-2">Sort By</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-white mb-2">Sort By</label>
           <Select value={sortBy} onValueChange={onSortChange}>
-            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+            <SelectTrigger className="bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600">
+            <SelectContent className="bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600">
               <SelectItem value="risk-desc">Risk Score (High to Low)</SelectItem>
               <SelectItem value="risk-asc">Risk Score (Low to High)</SelectItem>
               <SelectItem value="name-asc">Name (A to Z)</SelectItem>

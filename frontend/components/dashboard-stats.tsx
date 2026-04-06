@@ -23,34 +23,34 @@ export function DashboardStats({ applications }: DashboardStatsProps) {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-      <Card className="border border-slate-700 bg-slate-800 p-4">
-        <p className="text-xs text-slate-400 mb-2">Total Apps</p>
-        <p className="text-3xl font-bold text-white">{stats.total}</p>
+      <Card className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Total Apps</p>
+        <p className="text-3xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
       </Card>
 
-      <Card className="border border-red-700/50 bg-red-900/20 p-4">
-        <p className="text-xs text-red-300 mb-2">Critical</p>
-        <p className="text-3xl font-bold text-red-400">{stats.critical}</p>
+      <Card className="border border-red-200 dark:border-red-700/50 bg-red-50 dark:bg-red-900/20 p-4">
+        <p className="text-xs text-red-600 dark:text-red-300 mb-2">Critical</p>
+        <p className="text-3xl font-bold text-red-600 dark:text-red-400">{stats.critical}</p>
       </Card>
 
-      <Card className="border border-orange-700/50 bg-orange-900/20 p-4">
-        <p className="text-xs text-orange-300 mb-2">High</p>
-        <p className="text-3xl font-bold text-orange-400">{stats.high}</p>
+      <Card className="border border-orange-200 dark:border-orange-700/50 bg-orange-50 dark:bg-orange-900/20 p-4">
+        <p className="text-xs text-orange-600 dark:text-orange-300 mb-2">High</p>
+        <p className="text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.high}</p>
       </Card>
 
-      <Card className="border border-yellow-700/50 bg-yellow-900/20 p-4">
-        <p className="text-xs text-yellow-300 mb-2">Medium</p>
-        <p className="text-3xl font-bold text-yellow-400">{stats.medium}</p>
+      <Card className="border border-yellow-200 dark:border-yellow-700/50 bg-yellow-50 dark:bg-yellow-900/20 p-4">
+        <p className="text-xs text-yellow-600 dark:text-yellow-300 mb-2">Medium</p>
+        <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">{stats.medium}</p>
       </Card>
 
-      <Card className="border border-green-700/50 bg-green-900/20 p-4">
-        <p className="text-xs text-green-300 mb-2">Low</p>
-        <p className="text-3xl font-bold text-green-400">{stats.low}</p>
+      <Card className="border border-green-200 dark:border-green-700/50 bg-green-50 dark:bg-green-900/20 p-4">
+        <p className="text-xs text-green-600 dark:text-green-300 mb-2">Low</p>
+        <p className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.low}</p>
       </Card>
 
-      <Card className="border border-slate-700 bg-slate-800 p-4">
-        <p className="text-xs text-slate-400 mb-2">Avg Risk</p>
-        <p className="text-3xl font-bold text-blue-400">{stats.avgRisk}</p>
+      <Card className="border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Avg Risk</p>
+        <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.avgRisk}</p>
       </Card>
     </div>
   )

@@ -51,12 +51,12 @@ export default function Home() {
   }, [applications, riskFilter, sortBy])
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-6 md:p-8">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Application Risk Dashboard</h1>
-          <p className="text-slate-400">Assess and monitor application security risk across your portfolio</p>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">Application Risk Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400">Assess and monitor application security risk across your portfolio</p>
         </div>
 
         {/* File Upload Section */}

@@ -47,6 +47,8 @@ next-env.d.ts
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 
+*:Zone.Identifier
+
 # application data (keep structure but ignore uploaded data if needed)
 # Uncomment the line below if you don't want to commit application data
-# /data/applications.json
+# /frontend/data/applications.json
