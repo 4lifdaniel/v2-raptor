@@ -3,11 +3,19 @@
 import { useApplicationsStorage } from "@/hooks/use-applications-storage"
 import { ApplicationCard } from "@/components/application-card"
 import { Search } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function ApplicationsPage() {
+  const router = useRouter()
   const { applications, removeApplication, isLoaded } = useApplicationsStorage()
   const [searchQuery, setSearchQuery] = useState("")
+
+  useEffect(() => {
+    if (!localStorage.getItem("isLoggedIn")) {
+      router.push("/login")
+    }
+  }, [router])
 
   if (!isLoaded) return null
 

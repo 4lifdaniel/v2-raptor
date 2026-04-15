@@ -1,15 +1,21 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { LayoutDashboard, AppWindow, Settings } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { LayoutDashboard, AppWindow, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const isOverview = pathname === "/"
   const isApplications = pathname.startsWith("/applications")
+
+  const handleLogout = () => {
+    localStorage.removeItem("isLoggedIn")
+    router.push("/login")
+  }
 
   return (
     <aside
@@ -59,8 +65,15 @@ export function AppSidebar() {
           </ul>
         </div>
 
-        <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-6 space-y-4">
           <ThemeToggle />
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full px-2 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            <LogOut className="size-4 shrink-0 opacity-80" aria-hidden />
+            Logout
+          </button>
         </div>
       </nav>
     </aside>

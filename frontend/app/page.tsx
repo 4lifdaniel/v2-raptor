@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { FileUpload } from "@/components/file-upload"
 import { ApplicationList } from "@/components/application-list"
@@ -11,10 +12,17 @@ import { useApplicationsStorage } from "@/hooks/use-applications-storage"
 import { getRiskCategoryKey } from "@/lib/risk-calculator"
 
 export default function Home() {
+  const router = useRouter()
   const { applications, addFromExcel, removeApplication, clearAll, isLoaded } = useApplicationsStorage()
   const [riskFilter, setRiskFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("risk-desc")
   const [searchQuery, setSearchQuery] = useState<string>("")
+
+  useEffect(() => {
+    if (!localStorage.getItem("isLoggedIn")) {
+      router.push("/login")
+    }
+  }, [router])
 
   const filteredAndSortedApps = useMemo(() => {
     let filtered = applications

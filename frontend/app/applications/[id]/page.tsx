@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation"
 import { useApplicationsStorage } from "@/hooks/use-applications-storage"
+import { useEffect } from "react"
 import {
   calculateRiskScoreWithBreakdown,
   getRiskLevel,
@@ -19,6 +20,12 @@ export default function ApplicationDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { applications, isLoaded } = useApplicationsStorage()
+
+  useEffect(() => {
+    if (!localStorage.getItem("isLoggedIn")) {
+      router.push("/login")
+    }
+  }, [router])
 
   if (!isLoaded) return null
 
