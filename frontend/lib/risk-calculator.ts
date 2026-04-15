@@ -137,11 +137,6 @@ export function calculateRiskScoreWithBreakdown(application: Application): RiskB
   }
 }
 
-export function calculateRiskScore(application: Application): number {
-  return calculateRiskScoreWithBreakdown(application).totalScore
-}
-
-/** 0–10 Low, 11–20 Medium, 21–35 High, 36+ Critical */
 export function getRiskLevel(score: number): "Low" | "Medium" | "High" | "Critical" {
   if (score >= 36) return "Critical"
   if (score >= 21) return "High"
@@ -172,32 +167,15 @@ export function getRiskColor(score: number): string {
   }
 }
 
-export function getRiskBgColor(score: number): string {
-  const level = getRiskLevel(score)
-  switch (level) {
-    case "Critical":
-      return "bg-red-500/20 border-red-500/30"
-    case "High":
-      return "bg-orange-500/20 border-orange-500/30"
-    case "Medium":
-      return "bg-yellow-500/20 border-yellow-500/30"
-    case "Low":
-      return "bg-green-500/20 border-green-500/30"
-    default:
-      return "bg-slate-500/20 border-slate-500/30"
-  }
-}
-
-/** Bar fill width: score is capped at 100 for display when above 100. */
-export function getRiskScoreBarPercent(score: number): number {
-  return Math.min(100, Math.max(0, score))
-}
-
 export function getRiskBarToneClass(score: number): string {
   if (score >= 36) return "bg-red-500"
   if (score >= 21) return "bg-orange-500"
   if (score >= 11) return "bg-yellow-500"
   return "bg-green-500"
+}
+
+export function getRiskScoreBarPercent(score: number): number {
+  return Math.min(100, Math.max(0, score))
 }
 
 export function getRiskLevelHex(score: number): string {

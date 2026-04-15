@@ -17,7 +17,6 @@ export function exportToCSV(applications: Application[]): void {
     "Incidents",
     "Audit Findings",
     "VAPT Findings",
-    "Projects",
     "MFA",
     "Encryption",
     "SIEM Integration",
@@ -37,7 +36,6 @@ export function exportToCSV(applications: Application[]): void {
       app.incidents,
       app.auditFindings,
       app.vaptFindings,
-      app.projectCount,
       app.mfa ? "Yes" : "No",
       app.encryption ? "Yes" : "No",
       app.siemIntegration ? "Yes" : "No",
@@ -120,7 +118,6 @@ export function generateHTMLReport(applications: Application[]): string {
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${app.incidents}</td>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${app.auditFindings}</td>
           <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${app.vaptFindings}</td>
-          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${app.projectCount}</td>
         </tr>
       `
     })
@@ -237,7 +234,6 @@ export function generateHTMLReport(applications: Application[]): string {
               <th style="text-align: center;">Incidents</th>
               <th style="text-align: center;">Audit Findings</th>
               <th style="text-align: center;">VAPT Findings</th>
-              <th style="text-align: center;">Projects</th>
             </tr>
           </thead>
           <tbody>

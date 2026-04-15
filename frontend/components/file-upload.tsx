@@ -6,11 +6,9 @@ import { useState, useRef } from "react"
 import { Upload, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { parseExcelFile } from "@/lib/excel-parser"
-import type { Application } from "@/types/application"
 
 interface FileUploadProps {
-  onApplicationsAdded: (apps: Application[]) => void
+  onUpload: (file: File) => Promise<number>
 }
 
 interface UploadedFile {
@@ -20,7 +18,7 @@ interface UploadedFile {
   appCount?: number
 }
 
-export function FileUpload({ onApplicationsAdded }: FileUploadProps) {
+export function FileUpload({ onUpload }: FileUploadProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -37,50 +35,30 @@ export function FileUpload({ onApplicationsAdded }: FileUploadProps) {
     }))
     setUploadedFiles((prev) => [...prev, ...newUploadedFiles])
 
-    const allApplications: Application[] = []
-
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i]
       try {
-        const applications = await parseExcelFile(file)
-
-        if (applications.length === 0) {
-          setUploadedFiles((prev) => {
-            const updated = [...prev]
-            updated[prev.length - filesArray.length + i] = {
-              name: file.name,
-              status: "error",
-              error: "No valid application data found",
-            }
-            return updated
-          })
-        } else {
-          allApplications.push(...applications)
-          setUploadedFiles((prev) => {
-            const updated = [...prev]
-            updated[prev.length - filesArray.length + i] = {
-              name: file.name,
-              status: "success",
-              appCount: applications.length,
-            }
-            return updated
-          })
-        }
+        const appCount = await onUpload(file)
+        setUploadedFiles((prev) => {
+          const updated = [...prev]
+          updated[prev.length - filesArray.length + i] = {
+            name: file.name,
+            status: "success",
+            appCount,
+          }
+          return updated
+        })
       } catch (err) {
         setUploadedFiles((prev) => {
           const updated = [...prev]
           updated[prev.length - filesArray.length + i] = {
             name: file.name,
             status: "error",
-            error: err instanceof Error ? err.message : "Failed to parse file",
+            error: err instanceof Error ? err.message : "Failed to upload file",
           }
           return updated
         })
       }
-    }
-
-    if (allApplications.length > 0) {
-      onApplicationsAdded(allApplications)
     }
 
     if (fileInputRef.current) {

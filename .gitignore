@@ -9,7 +9,10 @@
 /frontend/.pnp
 /frontend/.pnp.js
 /frontend/.yarn/install-state.gz
-
+/backend/node_modules
+/backend/.pnp
+/backend/.pnp.js
+/backend/.yarn/install-state.gz
 
 # testing
 /coverage
@@ -19,15 +22,20 @@
 /out/
 /frontend/.next/
 /frontend/out/
+/backend/.next/
+/backend/out/
+
 
 # production
 /build
 /frontend/build
+/backend/build
 
 # misc
 .DS_Store
 *.pem
 /frontend/.DS_Store
+/backend/.DS_Store
 
 # debug
 npm-debug.log*
@@ -37,15 +45,22 @@ yarn-error.log*
 # local env files
 .env*.local
 /frontend/.env*.local
+/backend/.env*.local
+
 
 # vercel
 /frontend/.vercel
+/backend/.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
+backend/*.tsbuildinfo
+backend/next-env.d.ts
+
+backend/prisma/*.db
 
 *:Zone.Identifier
 

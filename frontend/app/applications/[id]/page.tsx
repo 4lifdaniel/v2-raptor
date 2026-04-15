@@ -9,9 +9,9 @@ import {
   getRiskScoreBarPercent
 } from "@/lib/risk-calculator"
 import {
-  ArrowLeft, Download, Edit, Verified, ShieldCheck,
-  User, Building2, Globe, ShieldAlert, Key, Server, Lock, Code,
-  CheckCircle2, XCircle, FileText, Check, Shield, Activity
+  ArrowLeft, Download, Edit,
+  User, Building2, Globe, ShieldAlert, Key, Server,
+  XCircle, FileText, Check, Shield, Activity, MapPinHouse
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -150,11 +150,20 @@ export default function ApplicationDetailPage() {
 
               <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-3 py-4 rounded-lg border border-transparent shadow-sm hover:border-slate-200 dark:hover:border-slate-700 transition">
                 <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <MapPinHouse className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Hosting</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{application.hostingExternal}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-3 py-4 rounded-lg border border-transparent shadow-sm hover:border-slate-200 dark:hover:border-slate-700 transition">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Connectivity</p>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{application.internetFacing ? "External / Public Facing" : "Internal Network"}</p>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Internet Facing</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{application.internetFacing ? "Yes" : "No"}</p>
                 </div>
               </div>
             </div>
@@ -169,8 +178,8 @@ export default function ApplicationDetailPage() {
               <ControlItem label="SIEM Integration" icon={Activity} active={!!application.siemIntegration} />
               <ControlItem label="Data Encryption" icon={Key} active={!!application.encryption} />
               <ControlItem label="Multi-Factor Auth" icon={ShieldAlert} active={!!application.mfa} />
-              <ControlItem label="Cloud WAF" icon={Shield} active={!!application.wafEnabled} />
-              <ControlItem label="Capacity Mgmt" icon={Server} active={!!application.capacityManagement} />
+              <ControlItem label="WAF Enabled" icon={Shield} active={!!application.wafEnabled} />
+              <ControlItem label="Capacity Management" icon={Server} active={!!application.capacityManagement} />
             </div>
           </div>
         </div>

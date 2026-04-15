@@ -105,10 +105,7 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">VAPT Findings</p>
               <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{application.vaptFindings}</p>
             </Card>
-            <Card className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Projects</p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{application.projectCount}</p>
-            </Card>
+
           </div>
 
           {/* Security Features */}
@@ -155,22 +152,7 @@ export function ApplicationModal({ application, breakdown, isOpen, onClose }: Ap
             </div>
           </Card>
 
-          {/* Projects */}
-          {application.projects.length > 0 && (
-            <Card className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Related Projects</h4>
-              <div className="flex flex-wrap gap-2">
-                {application.projects.map((project) => (
-                  <span
-                    key={project}
-                    className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs px-3 py-1 rounded-full border border-blue-200 dark:border-blue-800/50"
-                  >
-                    {project}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          )}
+
 
           <Button onClick={onClose} className="w-full mt-6 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white">
             Close

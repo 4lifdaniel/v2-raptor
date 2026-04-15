@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Application {
+  id                    String   @id @default(uuid())
+  name                  String   @unique
+  criticality           String?
+  description           String?
+  owner                 String?
+  department            String?
+  incidents             Int      @default(0)
+  incidentsSev1         Int      @default(0)
+  incidentsSev2         Int      @default(0)
+  incidentsSev3         Int      @default(0)
+  auditFindings         Int      @default(0)
+  vaptFindings          Int      @default(0)
+  vaptCritical          Int      @default(0)
+  vaptHigh              Int      @default(0)
+  vaptMedium            Int      @default(0)
+  vaptLow               Int      @default(0)
+  passwordComplexity    Boolean?
+  mfa                   Boolean?
+  endOfLife             Boolean?
+  eolWithin12Months     Boolean?
+  siemIntegration       Boolean?
+  encryption            Boolean?
+  capacityManagement    Boolean?
+  wafEnabled            Boolean?
+  internetFacing        Boolean?
+  thirdPartyInvolvement Boolean?
+  hostingExternal       String?
+  riskScore             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
