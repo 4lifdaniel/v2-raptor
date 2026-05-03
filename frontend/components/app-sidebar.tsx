@@ -26,7 +26,7 @@ export function AppSidebar() {
     >
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-4 py-4">
         <Link href="/" className="block">
-          <span className="text-md font-semibold tracking-tight text-slate-900 dark:text-white">Risk Assessment Portal</span>
+          <span className="text-md font-semibold tracking-tight text-slate-900 dark:text-white">Raptor</span>
         </Link>
       </div>
 

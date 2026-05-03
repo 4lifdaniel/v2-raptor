@@ -1,4 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
+const API_BASE_URL = typeof window === "undefined"
+  ? process.env.NEXT_PUBLIC_API_URL || "http://backend:3001"  // server-side
+  : "http://localhost:3001"  // client-side
 
 export interface ApiResponse<T> {
   success: boolean
