@@ -40,13 +40,13 @@ export async function upsertApplication(data: CreateApplicationDto): Promise<{ a
 
   const riskScore = calculateRiskScore({
     id: '',
-    name: data.name,
+    ...data,
     incidents: data.incidents ?? 0,
     auditFindings: data.auditFindings ?? 0,
     vaptFindings: data.vaptFindings ?? 0,
     riskScore: 0,
-    ...data,
-  });
+    passwordComplexity: data.passwordComplexity ?? false,
+  } as any);
 
   const existing = await prisma.application.findUnique({
     where: { name: data.name },
