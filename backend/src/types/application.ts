@@ -26,7 +26,7 @@ export interface Application {
   internetFacing?: boolean;
   thirdPartyInvolvement?: boolean;
   hostingExternal?: string;
-  projects: string[];
+  projects?: string[];
   // projectCount: number;
   riskScore: number;
 }
@@ -69,7 +69,7 @@ export interface CreateApplicationDto {
   vaptHigh?: number;
   vaptMedium?: number;
   vaptLow?: number;
-  passwordComplexity?: string | boolean;
+  passwordComplexity?: boolean;
   mfa?: boolean;
   endOfLife?: boolean;
   eolWithin12Months?: boolean;
